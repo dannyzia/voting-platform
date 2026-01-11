@@ -1,0 +1,368 @@
+// This is your Prisma schema file for the Digital Voting Platform
+// Based on the voting_app_spec.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// TABLE: users (Admin accounts only)
+// ============================================
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique @db.VarChar(255)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  role         String    @default("admin") @db.VarChar(50) // 'admin', 'super_admin'
+  fullName     String?   @map("full_name") @db.VarChar(255)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  lastLogin    DateTime? @map("last_login")
+
+  elections Election[]
+  auditLogs AuditLog[]
+
+  @@index([email])
+  @@map("users")
+}
+
+// ============================================
+// TABLE: elections
+// ============================================
+model Election {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(255)
+  description String?  @db.Text
+
+  // Timing
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+
+  // Status: 'draft', 'active', 'paused', 'completed', 'cancelled'
+  status String @default("draft") @db.VarChar(50)
+
+  // Authentication config (JSONB)
+  authConfig Json @default("{\"method\": \"device_fingerprint\", \"settings\": {\"strictness\": \"high\"}}") @map("auth_config")
+
+  // Map visualization config (JSONB)
+  mapConfig Json? @default("{\"color_mode\": \"proportional\", \"show_live_results\": true}") @map("map_config")
+
+  // File references
+  constituencyFileUrl String? @map("constituency_file_url") @db.Text
+  candidateFileUrl    String? @map("candidate_file_url") @db.Text
+  mapFileUrl          String? @map("map_file_url") @db.Text
+
+  // Metadata
+  createdById String?  @map("created_by") @db.Uuid
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  parties              Party[]
+  constituencies       Constituency[]
+  candidates           Candidate[]
+  voterSessions        VoterSession[]
+  votes                Vote[]
+  voteResults          VoteResult[]
+  constituencyResults  ConstituencyResult[]
+
+  @@index([status])
+  @@index([startDate, endDate])
+  @@map("elections")
+}
+
+// ============================================
+// TABLE: parties
+// ============================================
+model Party {
+  id         String @id @default(uuid()) @db.Uuid
+  electionId String @map("election_id") @db.Uuid
+  election   Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+
+  // Party identification
+  partyCode  String @map("party_code") @db.VarChar(50)
+  partyName  String @map("party_name") @db.VarChar(255)
+  partyShort String @map("party_short") @db.VarChar(50)
+
+  // Visual identity
+  partyColor   String  @map("party_color") @db.VarChar(7) // Hex color code #RRGGBB
+  partyLogoUrl String? @map("party_logo_url") @db.Text
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+
+  candidates          Candidate[]
+  constituencyResults ConstituencyResult[]
+
+  @@unique([electionId, partyCode])
+  @@index([electionId])
+  @@map("parties")
+}
+
+// ============================================
+// TABLE: constituencies
+// ============================================
+model Constituency {
+  id         String @id @default(uuid()) @db.Uuid
+  electionId String @map("election_id") @db.Uuid
+  election   Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+
+  // Identification
+  constituencyCode String @map("constituency_code") @db.VarChar(50)
+  constituencyName String @map("constituency_name") @db.VarChar(255)
+
+  // Geographic data
+  district String? @db.VarChar(100)
+  division String? @db.VarChar(100)
+
+  // GeoJSON properties (stored from uploaded file)
+  geoProperties Json? @map("geo_properties")
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+
+  candidates          Candidate[]
+  voterSessions       VoterSession[]
+  votes               Vote[]
+  voteResults         VoteResult[]
+  constituencyResults ConstituencyResult[]
+
+  @@unique([electionId, constituencyCode])
+  @@index([electionId])
+  @@map("constituencies")
+}
+
+// ============================================
+// TABLE: candidates
+// ============================================
+model Candidate {
+  id             String @id @default(uuid()) @db.Uuid
+  electionId     String @map("election_id") @db.Uuid
+  election       Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  constituencyId String @map("constituency_id") @db.Uuid
+  constituency   Constituency @relation(fields: [constituencyId], references: [id], onDelete: Cascade)
+  partyId        String? @map("party_id") @db.Uuid
+  party          Party? @relation(fields: [partyId], references: [id], onDelete: SetNull)
+
+  // Candidate identification
+  candidateCode String @map("candidate_code") @db.VarChar(50)
+  name          String @db.VarChar(255)
+
+  // Party affiliation (denormalized for performance)
+  partyName  String? @map("party_name") @db.VarChar(255)
+  partyShort String? @map("party_short") @db.VarChar(50)
+  partyColor String? @map("party_color") @db.VarChar(7) // Hex color code
+
+  // Visual identity
+  symbol          String? @db.VarChar(100)
+  candidateLogoUrl String? @map("candidate_logo_url") @db.Text
+
+  // Ballot configuration
+  ballotOrder Int @default(1) @map("ballot_order")
+
+  // Additional info
+  bio String? @db.Text
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+
+  votes                Vote[]
+  voteResults          VoteResult[]
+  winningConstituencies ConstituencyResult[]
+
+  @@unique([electionId, constituencyId, candidateCode])
+  @@index([electionId])
+  @@index([constituencyId])
+  @@index([partyId])
+  @@index([electionId, constituencyId])
+  @@map("candidates")
+}
+
+// ============================================
+// TABLE: device_fingerprints
+// ============================================
+model DeviceFingerprint {
+  id String @id @default(uuid()) @db.Uuid
+
+  // Fingerprint data
+  fingerprintHash String @unique @map("fingerprint_hash") @db.VarChar(64) // SHA-256 hash
+  fingerprintData Json   @map("fingerprint_data") // Full fingerprint details
+
+  // Tracking
+  firstSeen DateTime @default(now()) @map("first_seen")
+  lastSeen  DateTime @default(now()) @map("last_seen")
+  voteCount Int      @default(0) @map("vote_count")
+
+  // Fraud detection
+  flagged    Boolean @default(false)
+  flagReason String? @map("flag_reason") @db.Text
+
+  // IP tracking (hashed for privacy)
+  ipHash String? @map("ip_hash") @db.VarChar(64)
+
+  voterSessions VoterSession[]
+
+  @@index([fingerprintHash])
+  @@index([flagged])
+  @@map("device_fingerprints")
+}
+
+// ============================================
+// TABLE: voter_sessions
+// ============================================
+model VoterSession {
+  id                  String @id @default(uuid()) @db.Uuid
+  electionId          String @map("election_id") @db.Uuid
+  election            Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  deviceFingerprintId String @map("device_fingerprint_id") @db.Uuid
+  deviceFingerprint   DeviceFingerprint @relation(fields: [deviceFingerprintId], references: [id])
+
+  // Voting status
+  hasVoted Boolean   @default(false) @map("has_voted")
+  votedAt  DateTime? @map("voted_at")
+
+  // Assigned constituency (if determinable)
+  constituencyId String? @map("constituency_id") @db.Uuid
+  constituency   Constituency? @relation(fields: [constituencyId], references: [id])
+
+  // Session tracking
+  sessionToken     String?   @unique @map("session_token") @db.VarChar(255)
+  sessionExpiresAt DateTime? @map("session_expires_at")
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([electionId, deviceFingerprintId])
+  @@index([electionId])
+  @@index([deviceFingerprintId])
+  @@index([sessionToken])
+  @@map("voter_sessions")
+}
+
+// ============================================
+// TABLE: votes
+// ============================================
+model Vote {
+  id             String @id @default(uuid()) @db.Uuid
+  electionId     String @map("election_id") @db.Uuid
+  election       Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  constituencyId String @map("constituency_id") @db.Uuid
+  constituency   Constituency @relation(fields: [constituencyId], references: [id])
+  candidateId    String @map("candidate_id") @db.Uuid
+  candidate      Candidate @relation(fields: [candidateId], references: [id])
+
+  // Vote anonymization (NO link to device/session)
+  voteToken String @unique @map("vote_token") @db.VarChar(255) // One-time use token
+
+  // Timestamp
+  votedAt DateTime @default(now()) @map("voted_at")
+
+  // IP hash (for fraud detection, not voter identification)
+  ipHash String? @map("ip_hash") @db.VarChar(64)
+
+  @@index([electionId])
+  @@index([constituencyId])
+  @@index([candidateId])
+  @@index([votedAt])
+  @@index([electionId, constituencyId])
+  @@index([electionId, candidateId])
+  @@map("votes")
+}
+
+// ============================================
+// TABLE: vote_results (aggregated view)
+// ============================================
+model VoteResult {
+  id             String @id @default(uuid()) @db.Uuid
+  electionId     String @map("election_id") @db.Uuid
+  election       Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  constituencyId String @map("constituency_id") @db.Uuid
+  constituency   Constituency @relation(fields: [constituencyId], references: [id])
+  candidateId    String @map("candidate_id") @db.Uuid
+  candidate      Candidate @relation(fields: [candidateId], references: [id])
+
+  // Vote counts
+  voteCount      Int     @default(0) @map("vote_count")
+  votePercentage Decimal @default(0) @map("vote_percentage") @db.Decimal(5, 2)
+
+  // Last updated
+  lastUpdated DateTime @default(now()) @map("last_updated")
+
+  @@unique([electionId, constituencyId, candidateId])
+  @@index([electionId])
+  @@index([constituencyId])
+  @@map("vote_results")
+}
+
+// ============================================
+// TABLE: constituency_results
+// ============================================
+model ConstituencyResult {
+  id             String @id @default(uuid()) @db.Uuid
+  electionId     String @map("election_id") @db.Uuid
+  election       Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  constituencyId String @map("constituency_id") @db.Uuid
+  constituency   Constituency @relation(fields: [constituencyId], references: [id])
+
+  // PROPORTIONAL BLEND COLOR CALCULATION
+  mapColor   String  @map("map_color") @db.VarChar(7) // Resulting blended hex color
+  mapOpacity Decimal @default(0.80) @map("map_opacity") @db.Decimal(3, 2)
+
+  // Color breakdown (JSONB array of {party_color, percentage})
+  colorBreakdown Json? @map("color_breakdown")
+
+  // Winner information
+  winningCandidateId String?    @map("winning_candidate_id") @db.Uuid
+  winningCandidate   Candidate? @relation(fields: [winningCandidateId], references: [id])
+  winningPartyId     String?    @map("winning_party_id") @db.Uuid
+  winningParty       Party?     @relation(fields: [winningPartyId], references: [id])
+  winningPercentage  Decimal?   @map("winning_percentage") @db.Decimal(5, 2)
+  victoryMargin      Decimal?   @map("victory_margin") @db.Decimal(5, 2)
+
+  // Totals
+  totalVotesCast          Int      @default(0) @map("total_votes_cast")
+  voterTurnoutPercentage  Decimal? @map("voter_turnout_percentage") @db.Decimal(5, 2)
+
+  // Status
+  resultDeclared Boolean  @default(false) @map("result_declared")
+  lastUpdated    DateTime @default(now()) @map("last_updated")
+
+  @@unique([electionId, constituencyId])
+  @@index([electionId])
+  @@map("constituency_results")
+}
+
+// ============================================
+// TABLE: audit_logs
+// ============================================
+model AuditLog {
+  id String @id @default(uuid()) @db.Uuid
+
+  // Action tracking
+  action     String  @db.VarChar(100) // 'election_created', 'vote_cast', 'file_uploaded', etc.
+  entityType String? @map("entity_type") @db.VarChar(50) // 'election', 'vote', 'candidate', etc.
+  entityId   String? @map("entity_id") @db.Uuid
+
+  // User tracking (if admin action)
+  userId String? @map("user_id") @db.Uuid
+  user   User?   @relation(fields: [userId], references: [id])
+
+  // Device tracking (if voter action)
+  deviceFingerprintHash String? @map("device_fingerprint_hash") @db.VarChar(64)
+
+  // Details
+  details   Json?
+  ipAddress String? @map("ip_address") @db.VarChar(45) // IPv4 or IPv6
+
+  // Timestamp
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([action])
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}

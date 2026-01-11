@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ESRI_ItemInformation Culture='en-US'>
+<name>Bangladesh_Constituency</name>
+<guid>B8636EC3-D15A-49DD-AB82-BC86FD2514E0</guid>
+<catalogpath></catalogpath>
+<snippet>Bangladesh parliament constituency from 2008</snippet>
+<description>Bangladesh parliament constituency map from 2008</description>
+<summary>Bangladesh parliament constituency from 2008</summary>
+<title>Bangladesh_Constituency</title>
+<tags>Bangladesh</tags>
+<type>Service Definition</type>
+<typekeywords>
+<typekeyword>Shapefile Feature Class</typekeyword>
+<typekeyword>ArcGIS</typekeyword>
+<typekeyword>Service Definition</typekeyword>
+<typekeyword>.sd</typekeyword>
+</typekeywords>
+<thumbnail>thumbnail/thumbnail.png</thumbnail>
+<documentation></documentation>
+<url></url>
+<datalastmodifiedtime></datalastmodifiedtime>
+<extent>
+<xmin>88.0105673672903</xmin>
+<ymin>20.7411112762646</ymin>
+<xmax>92.6736606928869</xmax>
+<ymax>26.6343999819737</ymax>
+</extent>
+<spatialreference>GCS_WGS_1984</spatialreference>
+<accessinformation></accessinformation>
+<licenseinfo></licenseinfo>
+</ESRI_ItemInformation>

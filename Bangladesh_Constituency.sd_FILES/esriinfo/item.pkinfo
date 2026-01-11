@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<?xml-stylesheet type="text/xsl" href="http://www.arcgisonline.com/home/pkinfostylesheet.xsl"?>
+<pkinfo Culture='en-US'>
+<ID>B8636EC3-D15A-49DD-AB82-BC86FD2514E0</ID>
+<name>Bangladesh_Constituency</name>
+<version>10.4</version>
+<size>-1</size>
+<created></created>
+<type>Service Definition</type>
+<servable>true</servable>
+<packagelocation></packagelocation>
+<pkinfolocation></pkinfolocation>
+<documenttypes>
+<documenttype>mxd</documenttype>
+</documenttypes>
+</pkinfo>
