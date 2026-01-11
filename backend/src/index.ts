@@ -8,6 +8,17 @@ import { createServer } from "http";
 // Load environment variables
 dotenv.config();
 
+// Validate required environment variables
+const requiredEnvVars = ['DATABASE_URL'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+if (missingEnvVars.length > 0) {
+  console.error('Missing required environment variables:', missingEnvVars.join(', '));
+  console.error('Please set these variables in your .env file or environment');
+  process.exit(1);
+}
+
+console.log('Environment variables loaded successfully');
+
 // Import services (must be before routes that use them)
 import { wsService } from "./services/websocket";
 import { redisService } from "./services/redisService";
@@ -226,3 +237,15 @@ async function main() {
 }
 
 main();
+
+// Global unhandled rejection handler
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+
+// Global uncaught exception handler
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
+});
