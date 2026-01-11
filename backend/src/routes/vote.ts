@@ -80,12 +80,17 @@ router.post('/', validate(verifyDeviceSchema), async (req: Request, res: Respons
   }
 });
 
+// Helper to ensure value is string
+const asString = (v: unknown): string | undefined =>
+  Array.isArray(v) ? (typeof v[0] === 'string' ? v[0] : undefined) : (typeof v === 'string' ? v : undefined);
+
 // Cast vote (with strict rate limiting)
 router.post('/:electionId', strictRateLimiter, validate(castVoteSchema), async (req: Request, res: Response) => {
   try {
-    const { electionId } = req.params;
-    const { constituencyId, candidateId } = req.body;
-    const sessionToken = req.headers['x-session-token'] as string;
+    const electionId = req.params.electionId as string;
+    const constituencyId = asString(req.body.constituencyId)!;
+    const candidateId = asString(req.body.candidateId)!;
+    const sessionToken = asString(req.headers['x-session-token']);
     
     if (!sessionToken) {
       return res.status(401).json({ 

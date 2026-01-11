@@ -7,7 +7,7 @@ const router = Router();
 // Get election results
 router.get('/:electionId', async (req: Request, res: Response) => {
   try {
-    const { electionId } = req.params;
+    const electionId = req.params.electionId as string;
     
     const election = await prisma.election.findUnique({
       where: { id: electionId }
@@ -57,20 +57,23 @@ router.get('/:electionId', async (req: Request, res: Response) => {
       resultsDeclared: constituencyResults.filter(r => r.resultDeclared).length,
       inProgress: constituencyResults.filter(r => !r.resultDeclared && r.totalVotesCast > 0).length,
       
-      constituencies: constituencyResults.map(r => ({
-        constituencyId: r.constituencyId,
-        constituencyCode: r.constituency.constituencyCode,
-        constituencyName: r.constituency.constituencyName,
-        mapColor: r.mapColor,
-        mapOpacity: r.mapOpacity,
-        colorBreakdown: r.colorBreakdown,
-        winnerName: r.winningCandidate?.name,
-        winnerParty: r.winningCandidate?.partyShort,
-        winningPercentage: r.winningPercentage,
-        victoryMargin: r.victoryMargin,
-        totalVotes: r.totalVotesCast,
-        turnoutPercentage: r.voterTurnoutPercentage
-      })),
+      constituencies: constituencyResults.map(r => {
+        const cr = r as any;
+        return {
+          constituencyId: r.constituencyId,
+          constituencyCode: cr.constituency?.constituencyCode,
+          constituencyName: cr.constituency?.constituencyName,
+          mapColor: r.mapColor,
+          mapOpacity: r.mapOpacity,
+          colorBreakdown: r.colorBreakdown,
+          winnerName: cr.winningCandidate?.name,
+          winnerParty: cr.winningCandidate?.partyShort,
+          winningPercentage: r.winningPercentage,
+          victoryMargin: r.victoryMargin,
+          totalVotes: r.totalVotesCast,
+          turnoutPercentage: r.voterTurnoutPercentage
+        };
+      }),
       
       partySummary
     });
@@ -83,7 +86,7 @@ router.get('/:electionId', async (req: Request, res: Response) => {
 // Get map data with colors
 router.get('/:electionId/map', async (req: Request, res: Response) => {
   try {
-    const { electionId } = req.params;
+    const electionId = req.params.electionId as string;
     
     const election = await prisma.election.findUnique({
       where: { id: electionId }
@@ -109,7 +112,8 @@ router.get('/:electionId/map', async (req: Request, res: Response) => {
     const features = constituencies
       .filter(c => c.geoProperties)
       .map(c => {
-        const result = c.constituencyResults[0];
+        const cAny = c as any;
+        const result = cAny.constituencyResults?.[0];
         const geoProps = c.geoProperties as any;
         
         return {
@@ -142,7 +146,8 @@ router.get('/:electionId/map', async (req: Request, res: Response) => {
 // Get constituency details with vote breakdown
 router.get('/:electionId/constituencies/:constituencyId', async (req: Request, res: Response) => {
   try {
-    const { electionId, constituencyId } = req.params;
+    const electionId = req.params.electionId as string;
+    const constituencyId = req.params.constituencyId as string;
     
     const constituency = await prisma.constituency.findUnique({
       where: { id: constituencyId },
@@ -182,15 +187,18 @@ router.get('/:electionId/constituencies/:constituencyId', async (req: Request, r
         division: constituency.division
       },
       totalVotes,
-      results: voteResults.map(r => ({
-        candidateId: r.candidateId,
-        candidateName: r.candidate.name,
-        partyName: r.candidate.partyName,
-        partyShort: r.candidate.partyShort,
-        partyColor: r.candidate.partyColor,
-        voteCount: r.voteCount,
-        percentage: totalVotes > 0 ? ((r.voteCount / totalVotes) * 100).toFixed(2) : '0.00'
-      }))
+      results: voteResults.map(r => {
+        const rAny = r as any;
+        return {
+          candidateId: r.candidateId,
+          candidateName: rAny.candidate?.name,
+          partyName: rAny.candidate?.partyName,
+          partyShort: rAny.candidate?.partyShort,
+          partyColor: rAny.candidate?.partyColor,
+          voteCount: r.voteCount,
+          percentage: totalVotes > 0 ? ((r.voteCount / totalVotes) * 100).toFixed(2) : '0.00'
+        };
+      })
     });
   } catch (error) {
     console.error('Get constituency details error:', error);

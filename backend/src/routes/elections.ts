@@ -99,7 +99,7 @@ router.get('/active', async (req: Request, res: Response) => {
 // Get single election
 router.get('/:electionId', async (req: Request, res: Response) => {
   try {
-    const { electionId } = req.params;
+    const electionId = req.params.electionId as string;
     
     const election = await prisma.election.findUnique({
       where: { id: electionId },
@@ -127,9 +127,9 @@ router.get('/:electionId', async (req: Request, res: Response) => {
       status: election.status,
       authConfig: election.authConfig,
       stats: {
-        totalConstituencies: election._count.constituencies,
-        totalCandidates: election._count.candidates,
-        totalVotesCast: election._count.votes
+        totalConstituencies: (election as any)._count?.constituencies ?? 0,
+        totalCandidates: (election as any)._count?.candidates ?? 0,
+        totalVotesCast: (election as any)._count?.votes ?? 0
       }
     });
   } catch (error) {
@@ -141,7 +141,7 @@ router.get('/:electionId', async (req: Request, res: Response) => {
 // Get constituencies for an election
 router.get('/:electionId/constituencies', async (req: Request, res: Response) => {
   try {
-    const { electionId } = req.params;
+    const electionId = req.params.electionId as string;
     
     const constituencies = await prisma.constituency.findMany({
       where: { electionId },
@@ -172,7 +172,8 @@ router.get('/:electionId/constituencies', async (req: Request, res: Response) =>
 // Get candidates for a constituency
 router.get('/:electionId/constituencies/:constituencyId/candidates', async (req: Request, res: Response) => {
   try {
-    const { electionId, constituencyId } = req.params;
+    const electionId = req.params.electionId as string;
+    const constituencyId = req.params.constituencyId as string;
     
     const constituency = await prisma.constituency.findUnique({
       where: { id: constituencyId }
@@ -245,7 +246,7 @@ router.post('/', authMiddleware, validate(createElectionSchema), async (req: Req
 // Update election status (admin only)
 router.patch('/:electionId/status', authMiddleware, validate(updateElectionStatusSchema), async (req: Request, res: Response) => {
   try {
-    const { electionId } = req.params;
+    const electionId = req.params.electionId as string;
     const { status } = req.body;
     
     const validStatuses = ['draft', 'active', 'paused', 'completed', 'cancelled'];

@@ -6,6 +6,10 @@ import { candidateUploadSchema, geojsonUploadSchema } from '../utils/validation'
 
 const router = Router();
 
+// Helper to normalize query params to string
+const asString = (v: unknown): string | undefined =>
+  Array.isArray(v) ? (typeof v[0] === 'string' ? v[0] : undefined) : (typeof v === 'string' ? v : undefined);
+
 // Configure multer for file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -18,7 +22,7 @@ router.use(authMiddleware);
 // Upload candidates JSON
 router.post('/elections/:electionId/upload-candidates', upload.single('file'), async (req: Request, res: Response) => {
   try {
-    const { electionId } = req.params;
+    const electionId = req.params.electionId as string;
     
     if (!req.file) {
       return res.status(400).json({ success: false, errors: [{ message: 'No file uploaded' }] });
@@ -58,22 +62,22 @@ router.post('/elections/:electionId/upload-candidates', upload.single('file'), a
           where: {
             electionId_partyCode: {
               electionId,
-              partyCode: party.party_id
+              partyCode: String(party.party_id)
             }
           },
           update: {
-            partyName: party.party_name,
-            partyShort: party.party_short,
-            partyColor: party.party_color,
-            partyLogoUrl: party.party_logo_url || party.party_logo_base64
+            partyName: String(party.party_name),
+            partyShort: party.party_short ? String(party.party_short) : undefined,
+            partyColor: party.party_color ? String(party.party_color) : undefined,
+            partyLogoUrl: party.party_logo_url || party.party_logo_base64 || undefined
           },
           create: {
             electionId,
-            partyCode: party.party_id,
-            partyName: party.party_name,
-            partyShort: party.party_short,
-            partyColor: party.party_color,
-            partyLogoUrl: party.party_logo_url || party.party_logo_base64
+            partyCode: String(party.party_id),
+            partyName: String(party.party_name),
+            partyShort: String(party.party_short || ''),
+            partyColor: String(party.party_color || '#808080'),
+            partyLogoUrl: party.party_logo_url || party.party_logo_base64 || undefined
           }
         });
         summary.partiesCreated++;
@@ -88,20 +92,20 @@ router.post('/elections/:electionId/upload-candidates', upload.single('file'), a
           where: {
             electionId_constituencyCode: {
               electionId,
-              constituencyCode: constData.constituency_code
+              constituencyCode: String(constData.constituency_code)
             }
           },
           update: {
-            constituencyName: constData.constituency_name,
-            district: constData.district,
-            division: constData.division
+            constituencyName: String(constData.constituency_name),
+            district: constData.district ? String(constData.district) : null,
+            division: constData.division ? String(constData.division) : null
           },
           create: {
             electionId,
-            constituencyCode: constData.constituency_code,
-            constituencyName: constData.constituency_name,
-            district: constData.district,
-            division: constData.division
+            constituencyCode: String(constData.constituency_code),
+            constituencyName: String(constData.constituency_name),
+            district: constData.district ? String(constData.district) : null,
+            division: constData.division ? String(constData.division) : null
           }
         });
         summary.constituenciesProcessed++;
@@ -110,7 +114,7 @@ router.post('/elections/:electionId/upload-candidates', upload.single('file'), a
         if (constData.candidates && Array.isArray(constData.candidates)) {
           for (const candData of constData.candidates) {
             // Find party
-            let partyId = null;
+            let partyId: string | undefined = undefined;
             if (candData.party_id) {
               const party = await prisma.party.findUnique({
                 where: {
@@ -128,33 +132,33 @@ router.post('/elections/:electionId/upload-candidates', upload.single('file'), a
                 electionId_constituencyId_candidateCode: {
                   electionId,
                   constituencyId: constituency.id,
-                  candidateCode: candData.candidate_id
+                  candidateCode: String(candData.candidate_id)
                 }
               },
               update: {
-                name: candData.name,
+                name: String(candData.name),
                 partyId,
-                partyName: candData.party_name,
-                partyShort: candData.party_short,
-                partyColor: candData.party_color,
-                symbol: candData.symbol,
-                candidateLogoUrl: candData.candidate_logo_url || candData.candidate_logo_base64,
-                ballotOrder: candData.ballot_order,
-                bio: candData.bio
+                partyName: candData.party_name ? String(candData.party_name) : undefined,
+                partyShort: candData.party_short ? String(candData.party_short) : undefined,
+                partyColor: candData.party_color ? String(candData.party_color) : undefined,
+                symbol: candData.symbol ? String(candData.symbol) : undefined,
+                candidateLogoUrl: candData.candidate_logo_url || candData.candidate_logo_base64 || undefined,
+                ballotOrder: candData.ballot_order ?? undefined,
+                bio: candData.bio ? String(candData.bio) : undefined
               },
               create: {
                 electionId,
                 constituencyId: constituency.id,
-                candidateCode: candData.candidate_id,
-                name: candData.name,
+                candidateCode: String(candData.candidate_id),
+                name: String(candData.name),
                 partyId,
-                partyName: candData.party_name,
-                partyShort: candData.party_short,
-                partyColor: candData.party_color,
-                symbol: candData.symbol,
-                candidateLogoUrl: candData.candidate_logo_url || candData.candidate_logo_base64,
-                ballotOrder: candData.ballot_order,
-                bio: candData.bio
+                partyName: candData.party_name ? String(candData.party_name) : undefined,
+                partyShort: candData.party_short ? String(candData.party_short) : undefined,
+                partyColor: candData.party_color ? String(candData.party_color) : undefined,
+                symbol: candData.symbol ? String(candData.symbol) : undefined,
+                candidateLogoUrl: candData.candidate_logo_url || candData.candidate_logo_base64 || undefined,
+                ballotOrder: candData.ballot_order ?? undefined,
+                bio: candData.bio ? String(candData.bio) : undefined
               }
             });
             summary.candidatesCreated++;
@@ -180,7 +184,7 @@ router.post('/elections/:electionId/upload-candidates', upload.single('file'), a
 // Upload GeoJSON map
 router.post('/elections/:electionId/upload-map', upload.single('file'), async (req: Request, res: Response) => {
   try {
-    const { electionId } = req.params;
+    const electionId = req.params.electionId as string;
     
     if (!req.file) {
       return res.status(400).json({ success: false, errors: [{ message: 'No file uploaded' }] });
@@ -257,7 +261,7 @@ router.post('/elections/:electionId/upload-map', upload.single('file'), async (r
 // Get election statistics
 router.get('/elections/:electionId/stats', async (req: Request, res: Response) => {
   try {
-    const { electionId } = req.params;
+    const electionId = req.params.electionId as string;
     
     const [election, voteCount, constituencyCount, candidateCount] = await Promise.all([
       prisma.election.findUnique({ where: { id: electionId } }),
