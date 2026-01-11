@@ -3,9 +3,14 @@ import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
 import { PrismaClient } from "@prisma/client";
+import { createServer } from "http";
 
 // Load environment variables
 dotenv.config();
+
+// Import services (must be before routes that use them)
+import { wsService } from "./services/websocket";
+import { redisService } from "./services/redisService";
 
 // Import routes
 import authRoutes from "./routes/auth";
@@ -184,11 +189,6 @@ async function shutdown() {
 
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
-
-// WebSocket service
-import { createServer } from "http";
-import { wsService } from "./services/websocket";
-import { redisService } from "./services/redisService";
 
 // Start server
 async function main() {
