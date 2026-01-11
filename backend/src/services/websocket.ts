@@ -150,7 +150,7 @@ class WebSocketService {
    * Check if WebSocket server is connected and running
    */
   isConnected(): boolean {
-    return this.wss !== null && this.wss.readyState === 1;
+    return this.wss !== null;
   }
 }
 

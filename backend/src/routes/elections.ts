@@ -9,14 +9,15 @@ const router = Router();
 router.get('/', async (req: Request, res: Response) => {
   try {
     const { status, page = '1', limit = '10' } = req.query;
-    
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
+    const asString = (v: unknown): string | undefined => Array.isArray(v) ? (typeof v[0] === 'string' ? v[0] : undefined) : (typeof v === 'string' ? v : undefined);
+    const pageNum = parseInt(asString(page) ?? '1');
+    const limitNum = parseInt(asString(limit) ?? '10');
     const skip = (pageNum - 1) * limitNum;
     
     const where: any = {};
-    if (status) {
-      where.status = status;
+    const statusStr = asString(status);
+    if (statusStr) {
+      where.status = statusStr;
     }
     
     const [elections, total] = await Promise.all([
@@ -44,8 +45,8 @@ router.get('/', async (req: Request, res: Response) => {
         status: e.status,
         startDate: e.startDate,
         endDate: e.endDate,
-        totalConstituencies: e._count.constituencies,
-        totalCandidates: e._count.candidates
+        totalConstituencies: (e as any)._count?.constituencies ?? 0,
+        totalCandidates: (e as any)._count?.candidates ?? 0
       })),
       pagination: {
         page: pageNum,
@@ -86,7 +87,7 @@ router.get('/active', async (req: Request, res: Response) => {
         description: e.description,
         startDate: e.startDate,
         endDate: e.endDate,
-        totalConstituencies: e._count.constituencies
+        totalConstituencies: (e as any)._count?.constituencies ?? 0
       }))
     });
   } catch (error) {
@@ -159,7 +160,7 @@ router.get('/:electionId/constituencies', async (req: Request, res: Response) =>
         name: c.constituencyName,
         district: c.district,
         division: c.division,
-        candidateCount: c._count.candidates
+        candidateCount: (c as any)._count?.candidates ?? 0
       }))
     });
   } catch (error) {

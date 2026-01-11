@@ -34,10 +34,11 @@ router.post('/login', async (req: Request, res: Response) => {
     });
     
     // Generate JWT
+    const secret: jwt.Secret = process.env.JWT_SECRET ?? 'secret';
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || 'secret',
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      secret,
+      { expiresIn: (process.env.JWT_EXPIRES_IN ?? '7d') as jwt.SignOptions['expiresIn'] }
     );
     
     res.json({

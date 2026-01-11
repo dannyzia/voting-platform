@@ -141,7 +141,8 @@ export async function updateConstituencyMapColor(
         select: {
           id: true,
           name: true,
-          partyId: true
+          partyId: true,
+          partyShort: true
         }
       }
     }

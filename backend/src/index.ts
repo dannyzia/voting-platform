@@ -139,9 +139,10 @@ app.get("/api/v1/health", async (req: Request, res: Response) => {
       res.status(503).json(healthStatus);
     }
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     res.status(500).json({
       status: "error",
-      error: error.message,
+      error: message,
       timestamp: new Date().toISOString(),
     });
   }
