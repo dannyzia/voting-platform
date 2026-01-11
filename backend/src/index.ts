@@ -196,8 +196,17 @@ async function main() {
     await prisma.$connect();
     console.log("Connected to database");
 
-    // Connect to Redis
-    await redisService.connect();
+    // Connect to Redis (optional, continue without it if unavailable)
+    try {
+      await redisService.connect();
+      if (redisService.isReady()) {
+        console.log("Redis connected successfully");
+      } else {
+        console.log("Running without Redis - some features may be limited");
+      }
+    } catch (error) {
+      console.warn("Redis connection failed, continuing without it:", error);
+    }
 
     // Create HTTP server for Express + WebSocket
     const server = createServer(app);

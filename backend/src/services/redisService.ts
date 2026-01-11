@@ -12,7 +12,14 @@ class RedisService {
 
   async connect() {
     try {
-      const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+      const redisUrl = process.env.REDIS_URL;
+      
+      // If no Redis URL configured, skip Redis connection (optional in production)
+      if (!redisUrl) {
+        console.log("Redis: No REDIS_URL configured, running without Redis");
+        this.isConnected = false;
+        return;
+      }
 
       // Check if using Upstash REST API
       if (
