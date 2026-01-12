@@ -9,9 +9,9 @@ import { createServer } from "http";
 dotenv.config();
 const hasDatabaseUrl = !!process.env.DATABASE_URL;
 if (!hasDatabaseUrl) {
-  console.warn('Warning: DATABASE_URL is not set. Starting without DB connection.');
+  console.warn("Warning: DATABASE_URL is not set. Prisma will be disabled.");
 }
-console.log('Environment variables loaded');
+console.log("Environment variables loaded");
 
 // Import services (must be before routes that use them)
 import { wsService } from "./services/websocket";
@@ -27,8 +27,20 @@ import resultsRoutes from "./routes/results";
 // Import middleware
 import { apiRateLimiter } from "./middleware/rateLimiter";
 
-// Initialize Prisma
-export const prisma = new PrismaClient();
+// Initialize Prisma (stubbed when DATABASE_URL is missing)
+const prismaStub = () =>
+  new Proxy(
+    {},
+    {
+      get() {
+        throw new Error("Database is not configured (missing DATABASE_URL)");
+      },
+    },
+  ) as unknown as PrismaClient;
+
+export const prisma: PrismaClient = hasDatabaseUrl
+  ? new PrismaClient()
+  : prismaStub();
 
 // Create Express app
 const app: Application = express();
@@ -211,11 +223,15 @@ async function main() {
     });
 
     // Try to connect to the database, but don't abort startup if it fails
-    try {
-      await prisma.$connect();
-      console.log("Connected to database");
-    } catch (dbErr) {
-      console.warn("Database connection failed. API will run in degraded mode:", dbErr instanceof Error ? dbErr.message : String(dbErr));
+    if (hasDatabaseUrl) {
+      try {
+        await prisma.$connect();
+        console.log("Connected to database");
+      } catch (dbErr) {
+        console.warn("Database connection failed. API will run in degraded mode:", dbErr instanceof Error ? dbErr.message : String(dbErr));
+      }
+    } else {
+      console.warn("DATABASE_URL not set; skipping Prisma connection.");
     }
 
     // Connect to Redis (optional, continue without it if unavailable)
