@@ -11,6 +11,7 @@ services:
     env: node
     region: oregon
     plan: free
+    preDeployCommand: cd backend && npm run db:migrate:deploy
     buildCommand: cd backend && npm install && npm run build
     startCommand: cd backend && npm start
     envVars:

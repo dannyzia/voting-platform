@@ -6,6 +6,7 @@
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "prisma generate && node --max-old-space-size=512 ./node_modules/.bin/tsc",
     "start": "node dist/index.js",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
