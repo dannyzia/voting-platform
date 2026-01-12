@@ -32,7 +32,7 @@ export const prisma = new PrismaClient();
 
 // Create Express app
 const app: Application = express();
-const PORT = Number(process.env.PORT) || 3001;
+const PORT = Number(process.env.PORT) || 10000;
 
 // Middleware
 app.use(
