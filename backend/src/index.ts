@@ -3,6 +3,8 @@ import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
 import { PrismaClient } from "@prisma/client";
+import { Pool } from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { createServer } from "http";
 
 // Load environment variables
@@ -38,8 +40,12 @@ const prismaStub = () =>
     },
   ) as unknown as PrismaClient;
 
+const pgPool = hasDatabaseUrl
+  ? new Pool({ connectionString: process.env.DATABASE_URL })
+  : null;
+
 export const prisma: PrismaClient = hasDatabaseUrl
-  ? new PrismaClient()
+  ? new PrismaClient({ adapter: new PrismaPg(pgPool!) })
   : prismaStub();
 
 // Create Express app
@@ -201,6 +207,9 @@ async function shutdown() {
   console.log("Shutting down gracefully...");
   await redisService.disconnect();
   await prisma.$disconnect();
+  if (pgPool) {
+    await pgPool.end();
+  }
   process.exit(0);
 }
 
