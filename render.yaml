@@ -20,6 +20,4 @@ services:
       - key: PORT
         value: 10000
       - key: DATABASE_URL
-        fromDatabase:
-          name: voting-db
-          property: connectionString
+        value: "postgresql://neondb_owner:npg_QxjpUA6oby2d@ep-empty-boat-ahv3ib6x-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require&schema=public"
