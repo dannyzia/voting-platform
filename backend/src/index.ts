@@ -32,7 +32,7 @@ export const prisma = new PrismaClient();
 
 // Create Express app
 const app: Application = express();
-const PORT = process.env.PORT || 3001;
+const PORT = Number(process.env.PORT) || 3001;
 
 // Middleware
 app.use(
@@ -204,7 +204,7 @@ async function main() {
     // Initialize WebSocket
     wsService.initialize(server);
 
-    server.listen(PORT, () => {
+    server.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`WebSocket available at ws://localhost:${PORT}/ws`);
       console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
