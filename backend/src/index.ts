@@ -7,17 +7,11 @@ import { createServer } from "http";
 
 // Load environment variables
 dotenv.config();
-
-// Validate required environment variables
-const requiredEnvVars = ['DATABASE_URL'];
-const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
-if (missingEnvVars.length > 0) {
-  console.error('Missing required environment variables:', missingEnvVars.join(', '));
-  console.error('Please set these variables in your .env file or environment');
-  process.exit(1);
+const hasDatabaseUrl = !!process.env.DATABASE_URL;
+if (!hasDatabaseUrl) {
+  console.warn('Warning: DATABASE_URL is not set. Starting without DB connection.');
 }
-
-console.log('Environment variables loaded successfully');
+console.log('Environment variables loaded');
 
 // Import services (must be before routes that use them)
 import { wsService } from "./services/websocket";
@@ -204,8 +198,25 @@ process.on("SIGINT", shutdown);
 // Start server
 async function main() {
   try {
-    await prisma.$connect();
-    console.log("Connected to database");
+    // Create HTTP server for Express + WebSocket first, so we bind the port regardless
+    const server = createServer(app);
+
+    // Initialize WebSocket
+    wsService.initialize(server);
+
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+      console.log(`WebSocket available at ws://localhost:${PORT}/ws`);
+      console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+    });
+
+    // Try to connect to the database, but don't abort startup if it fails
+    try {
+      await prisma.$connect();
+      console.log("Connected to database");
+    } catch (dbErr) {
+      console.warn("Database connection failed. API will run in degraded mode:", dbErr instanceof Error ? dbErr.message : String(dbErr));
+    }
 
     // Connect to Redis (optional, continue without it if unavailable)
     try {
@@ -218,21 +229,9 @@ async function main() {
     } catch (error) {
       console.warn("Redis connection failed, continuing without it:", error);
     }
-
-    // Create HTTP server for Express + WebSocket
-    const server = createServer(app);
-
-    // Initialize WebSocket
-    wsService.initialize(server);
-
-    server.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`WebSocket available at ws://localhost:${PORT}/ws`);
-      console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
-    });
   } catch (error) {
     console.error("Failed to start server:", error);
-    process.exit(1);
+    // Do not exit; keep process alive to allow Render to detect open port
   }
 }
 
